@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="eng">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>Digit Recognizer</title>
+        <style>
+            body {
+                background-color: #1e1d1d;
+                font-family: Arial, sans-serif;
+            }
+            h1 {
+                color: bisque;
+                text-align: center;
+            }
+            #smallcanva {
+                width: 300px;
+                height: 300px;
+                image-rendering: pixelated;
+                image-rendering: crisp-edges;
+            } 
+            #croppedcanva {
+                image-rendering: crisp-edges;
+                image-rendering: pixelated;
+            }
+            #downscaled20 {
+                image-rendering: pixelated;
+                image-rendering: crisp-edges;
+
+            }
+            #paddingcanvas {
+                image-rendering: pixelated;
+                image-rendering: crisp-edges;
+            }
+            #mycanva {
+                touch-action: none;
+            }
+            #paddingcanvas {
+                width: 300px;
+                height: 300px;
+                image-rendering: pixelated;
+            }
+            .controls {
+                margin-top: 15px;
+            }
+            button {
+                background-color: bisque;
+                color: #1e1d1d;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-weight: bold;
+                cursor: pointer;
+                margin-top: 10px;
+                margin-right: 5px;
+            }
+            button:hover {
+                background-color: white;
+            }
+            .buttons {
+                text-align: center;
+            }
+            .row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                justify-content: center;
+            }
+            .slot {
+                width: 300px;
+                height: 300px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 5px solid black;
+            }
+            .pannel {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            .label {
+                color: bisque;
+                margin: 6px 0 0;
+                font-weight: bold;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <h1>Digit Recognizer!</h1>
+        </div>
+        <div class="pannel">
+            <canvas id="mycanva" width="300" height="300" style="border: 5px solid black;"></canvas>
+            <p class="label">Main canvas</p>
+        </div>
+        <div class="row">
+            <div class="pannel">
+                <canvas id="smallcanva" width="28" height="28" style="border: 5px solid black;"></canvas>
+                <p class="label">Down Scaled</p>
+            </div>
+            <div class="pannel">
+                <div class="slot"><canvas id="croppedcanva" style="border: 5px solid black;"></canvas></div>
+                <p class="label">Cropped Canvas</p>
+            </div>
+            <div class="pannel">
+                <canvas id="paddingcanvas" width="28" height="28" style="border: 5px solid black;"></canvas>
+                <p class="label">Added Padding</p>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button type="button" id="mybutton">Clear</button>
+            <button type="button" id="predict">Predict</button>
+        </div>
+        <h1 id="output" style="text-align: bottom;">Loading...</h1>
+        
+        
+        <script>
+            const canvas = document.getElementById('mycanva');
+            const ctx = canvas.getContext("2d");
+            const button = document.getElementById('mybutton');
+            const pred_button = document.getElementById('predict');
+            const x = 0, y = 0, width = 300, height = 300;
+            const draw = document.getElementById('smallcanva');
+            const drawctx = draw.getContext('2d');
+            const displaycanvas = document.getElementById("croppedcanva");
+            const displayctx = displaycanvas.getContext('2d');
+            const padding =  document.getElementById("paddingcanvas");
+            const paddingctx = padding.getContext('2d');
+            const output = document.getElementById("output")
+            const coords = document.getElementById("coords")
+            drawctx.imageSmoothingEnabled = true;
+            drawctx.imageSmoothingQuality = 'high';
+
+            let isDrawing = false;
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 30;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            canvas.addEventListener('pointerdown', (event) => {
+                isDrawing = true;
+                ctx.beginPath();
+                ctx.moveTo(event.offsetX, event.offsetY);
+                
+            });
+            canvas.addEventListener('pointermove',(event) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.floor(event.clientX - rect.left);
+                const y = Math.floor(event.clientY - rect.top);
+                if (!isDrawing) {
+                    return;
+                }
+                else {
+                    ctx.lineTo(event.offsetX, event.offsetY);
+                    ctx.stroke();
+                }
+            });
+            canvas.addEventListener('pointerup', (event) => {
+                isDrawing = false
+                drawctx.drawImage(canvas, 0, 0, 28, 28);
+                ctx.closePath();
+            });
+            
+            button.addEventListener('click', (event) => {
+                ctx.clearRect(x, y, width, height);
+                drawctx.clearRect(0, 0, 28, 28);
+                displayctx.clearRect(0, 0, displaycanvas.width, displaycanvas.height);
+                paddingctx.clearRect(0, 0, padding.width, padding.height);
+            });
+            let min_x;
+            let max_x;
+            let min_y;
+            let max_y;
+            pred_button.addEventListener('click', async (event) => {
+                let isfirstpixel= true;
+                const list = [];
+                const imgData = drawctx.getImageData(0, 0, 28, 28);
+                for (let i = 3; i < imgData.data.length; i += 4) {
+                    
+                    //to undo the effect applied by our software
+                    //every pixel contains 4 channels RGBA but we only care about 4th one A alpha thats why we are
+                    //dividing by 4 and subtracting 3 because we want pixel  
+                    const pixel_index = (i - 3) / 4;
+                    const pixelX = pixel_index % 28;
+                    const pixelY = Math.floor(pixel_index / 28);
+                    if (imgData.data[i] > 0) {
+                        if (isfirstpixel) {
+                            min_x = pixelX;
+                            max_x = pixelX;
+                            min_y = pixelY;
+                            max_y = pixelY;
+                            isfirstpixel = false;
+                        }
+                        
+                        if (pixelX > max_x) {
+                            max_x = pixelX;
+                        }
+                        if (pixelX < min_x) {
+                            min_x = pixelX;
+                        }
+                        if (pixelY > max_y) {
+                            max_y = pixelY;                        
+                        }
+                        if (pixelY < min_y) {
+                            min_y = pixelY;
+                        }
+                        
+                    }
+                }
+            const cropwidth = max_x - min_x + 1;
+            const cropheight = max_y - min_y + 1;
+            console.log(min_x, min_y, max_x, max_y);
+            displaycroppedcanva(min_x, min_y, max_x, max_x);
+
+            
+            function predict(paddingctx) {
+                if (isfirstpixel) {
+                    output.textContent = "Draw a digit first";
+                    return;
+                }
+                const list_canva = [];
+                const data_canva = paddingctx.getImageData(0, 0, 28, 28);
+                for(let i = 3; i < data_canva.data.length; i+=4) {
+                    list_canva.push(data_canva.data[i]);
+                    
+                }
+                console.log("pixels: ", [...new Set(data_canva.data)]);
+                call(list_canva);
+                
+
+            }
+            function displaycroppedcanva(min_x, min_y, max_x, max_y) {
+                const imagedata = drawctx.getImageData(min_x, min_y, cropwidth, cropheight);
+                //no. of pixels we are putting in our canvas here it depends on crop width and height
+                
+                const scale = Math.min(20/cropwidth, 20/cropheight);
+
+                const new_width = cropwidth * scale;
+                const new_height = cropheight * scale;
+                
+
+                displaycanvas.width = cropwidth;
+                displaycanvas.height = cropheight;
+                const k = 300 / Math.max(cropwidth, cropheight);
+                displaycanvas.style.width = (cropwidth * k) + "px";
+                displaycanvas.style.height = (cropheight * k) + "px";
+                displayctx.putImageData(imagedata, 0, 0);
+                //padding
+                
+
+                padding.width = 28;
+                padding.height = 28;
+                const dx = (28 - new_width) / 2;
+                const dy = (28 - new_height) / 2;
+                paddingctx.drawImage(displaycanvas, 0, 0, cropwidth, cropheight, dx, dy, new_width, new_height);
+                predict(paddingctx);
+            }
+            async function call(list_canva) {
+                console.log(list_canva.length);
+                console.log(list_canva);
+
+                const response = await fetch('/route', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(list_canva)
+                });
+
+                const result = await response.json();
+
+                console.log("prediction:", result.predicted);
+                output.textContent = `Predicted = ${result.predicted}`;
+            }
+                
+            });
+        </script>
+    </body>
+</html>
