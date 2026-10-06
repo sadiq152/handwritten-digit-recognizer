@@ -89,11 +89,20 @@ Input
 - Git / GitHub
 
 ## Running Locally
-
+Cloning Repository
 ```bash
-- clone the repository
 git clone https://github.com/sadiq152/handwritten-digit-recognizer.git
+```
+Change directory
+```bash
 cd handwritten-digit-recognizer
+```
+Install requirements
+```bash
 pip install -r requirements.txt
+```
+Host local server
+```bash
 python app.py
+```
 [then you can join locally hosted server]
