@@ -22,9 +22,6 @@ https://github.com/user-attachments/assets/7d7d8781-cd07-4a8b-af56-cdef11a652b7
 ### Desktop
 ![Desktop UI](https://github.com/user-attachments/assets/d924867e-f71a-4854-9c4d-890dd384ba63)
 
-### Mobile
-![Mobile UI](https://github.com/user-attachments/assets/79cea5c6-01fa-4d73-ac6f-66089a49b74e)
-
 ## Features
 - Handwritten digit recognition
 - Interactive drawing canvas
